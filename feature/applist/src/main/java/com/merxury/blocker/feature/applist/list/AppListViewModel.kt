@@ -14,10 +14,9 @@
  * limitations under the License.
  */
 
-package com.merxury.blocker.feature.applist
+package com.merxury.blocker.feature.applist.list
 
 import android.content.Context
-import android.content.pm.PackageInfo
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshots.SnapshotStateList
@@ -25,6 +24,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.merxury.blocker.core.data.respository.userdata.UserDataRepository
 import com.merxury.blocker.core.extension.exec
+import com.merxury.blocker.core.model.AppServiceStatus
 import com.merxury.blocker.core.model.Application
 import com.merxury.blocker.core.model.preference.AppSorting
 import com.merxury.blocker.core.model.preference.AppSorting.FIRST_INSTALL_TIME_ASCENDING
@@ -36,11 +36,16 @@ import com.merxury.blocker.core.model.preference.AppSorting.NAME_DESCENDING
 import com.merxury.blocker.core.network.BlockerDispatchers.DEFAULT
 import com.merxury.blocker.core.network.BlockerDispatchers.IO
 import com.merxury.blocker.core.network.Dispatcher
+import com.merxury.blocker.core.ui.TabState
 import com.merxury.blocker.core.ui.data.ErrorMessage
 import com.merxury.blocker.core.utils.ApplicationUtil
 import com.merxury.blocker.core.utils.FileUtils
-import com.merxury.blocker.feature.applist.state.AppStateCache
+import com.merxury.blocker.feature.applist.R.string
+import com.merxury.blocker.feature.applist.list.HomeUiState.NoApps
+import com.merxury.blocker.feature.applist.list.HomeUiState.Success
+import com.merxury.blocker.feature.applist.list.state.AppStateCache
 import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineStart
@@ -48,15 +53,17 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.datetime.Instant
 import timber.log.Timber
-import javax.inject.Inject
 
 @HiltViewModel
 class AppListViewModel @Inject constructor(
@@ -65,8 +72,36 @@ class AppListViewModel @Inject constructor(
     @Dispatcher(IO) private val ioDispatcher: CoroutineDispatcher,
     @Dispatcher(DEFAULT) private val cpuDispatcher: CoroutineDispatcher,
 ) : AndroidViewModel(app) {
-    private val _uiState = MutableStateFlow<AppListUiState>(AppListUiState.Loading)
-    val uiState = _uiState.asStateFlow()
+    private val viewModelState = MutableStateFlow(HomeViewModelState(isLoading = true))
+    val uiState = viewModelState
+        .map(HomeViewModelState::toUiState)
+        .stateIn(
+            viewModelScope,
+            SharingStarted.Eagerly,
+            viewModelState.value.toUiState(),
+        )
+
+    private val _tabState = MutableStateFlow(
+        TabState(
+            titles = listOf(
+                string.app_info,
+                string.receiver,
+                string.service,
+                string.activity,
+                string.content_provider,
+            ),
+            currentIndex = 0,
+        ),
+    )
+    val tabState: StateFlow<TabState> = _tabState.asStateFlow()
+    fun switchTab(newIndex: Int) {
+        if (newIndex != tabState.value.currentIndex) {
+            _tabState.update {
+                it.copy(currentIndex = newIndex)
+            }
+        }
+    }
+
     var errorState = mutableStateOf<ErrorMessage?>(null)
     private val exceptionHandler = CoroutineExceptionHandler { _, throwable ->
         Timber.e(throwable)
@@ -92,7 +127,7 @@ class AppListViewModel @Inject constructor(
     }
 
     fun loadData() = viewModelScope.launch {
-        _uiState.emit(AppListUiState.Loading)
+        viewModelState.update { it.copy(isLoading = true) }
         val preference = userDataRepository.userData.first()
         val sortType = preference.appSorting
         val list = if (preference.showSystemApps) {
@@ -103,7 +138,19 @@ class AppListViewModel @Inject constructor(
             .toMutableList()
         val stateAppList = mapToSnapshotStateList(list, getApplication())
         sortList(stateAppList, sortType)
-        _uiState.emit(AppListUiState.Success(stateAppList))
+        viewModelState.update { it.copy(appList = stateAppList) }
+    }
+
+    private fun loadDetail(app: android.app.Application) = viewModelScope.launch {
+        val packageName = app.packageName
+        val app = ApplicationUtil.getApplicationInfo(getApplication(), packageName)
+        if (app == null) {
+            val error = ErrorMessage("Can't find $packageName in this device.")
+            Timber.e(error.message)
+            viewModelState.update { it.copy(errorMessages = error) }
+        } else {
+            viewModelState.update { it.copy(selectedAppName = app.packageName) }
+        }
     }
 
     private fun listenSortingChanges() = viewModelScope.launch {
@@ -111,8 +158,8 @@ class AppListViewModel @Inject constructor(
             .map { it.appSorting }
             .distinctUntilChanged()
             .collect {
-                val uiState = _uiState.value
-                if (uiState is AppListUiState.Success) {
+                val uiState = viewModelState.value
+                if (uiState.appList != null) {
                     sortList(uiState.appList, it)
                 }
             }
@@ -142,8 +189,8 @@ class AppListViewModel @Inject constructor(
                     return@launch
                 }
                 Timber.d("Get service status for $packageName")
-                val currentUiState = _uiState.value
-                if (currentUiState !is AppListUiState.Success) {
+                val currentUiState = viewModelState.value
+                if (currentUiState.isLoading || currentUiState.appList == null) {
                     Timber.e("Ui state is incorrect, don't update service status.")
                     return@launch
                 }
@@ -206,8 +253,52 @@ class AppListViewModel @Inject constructor(
         "pm disable $packageName".exec(ioDispatcher)
     }
 
+    fun onRefresh() {
+        // TODO
+    }
+
+    fun onShare() {
+        // TODO
+    }
+
+    fun onFindInPage() {
+        // TODO
+    }
+
+    fun onEnableApp() {
+        // TODO
+    }
+
+    fun onEnableAll() {
+        // TODO
+    }
+
+    fun onBlockAll() {
+        // TODO
+    }
+
+    fun onExportRules() {
+        // TODO
+    }
+
+    fun onImportRules() {
+        // TODO
+    }
+
+    fun onExportIfw() {
+        // TODO
+    }
+
+    fun onImportIfw() {
+        // TODO
+    }
+
+    fun onResetIfw() {
+        // TODO
+    }
+
     private suspend fun sortList(
-        list: SnapshotStateList<AppItem>,
+        list: SnapshotStateList<Application>,
         sorting: AppSorting,
     ) = withContext(cpuDispatcher) {
         when (sorting) {
@@ -218,16 +309,16 @@ class AppListViewModel @Inject constructor(
             LAST_UPDATE_TIME_ASCENDING -> list.sortBy { it.lastUpdateTime }
             LAST_UPDATE_TIME_DESCENDING -> list.sortByDescending { it.lastUpdateTime }
         }
-        list.sortBy { it.enabled }
+        list.sortBy { it.isEnabled }
     }
 
     private suspend fun mapToSnapshotStateList(
         list: MutableList<Application>,
         context: Context,
-    ): SnapshotStateList<AppItem> = withContext(cpuDispatcher) {
-        val stateAppList = mutableStateListOf<AppItem>()
+    ): SnapshotStateList<Application> = withContext(cpuDispatcher) {
+        val stateAppList = mutableStateListOf<Application>()
         list.forEach {
-            val appItem = AppItem(
+            val appItem = Application(
                 label = it.label,
                 packageName = it.packageName,
                 versionName = it.versionName.orEmpty(),
@@ -235,7 +326,7 @@ class AppListViewModel @Inject constructor(
                 isSystem = ApplicationUtil.isSystemApp(context.packageManager, it.packageName),
                 // TODO detect if an app is running or not
                 isRunning = false,
-                enabled = it.isEnabled,
+                isEnabled = it.isEnabled,
                 firstInstallTime = it.firstInstallTime,
                 lastUpdateTime = it.lastUpdateTime,
                 // TODO get service status
@@ -248,35 +339,62 @@ class AppListViewModel @Inject constructor(
     }
 }
 
-data class AppServiceStatus(
-    val packageName: String,
-    val running: Int = 0,
-    val blocked: Int = 0,
-    val total: Int = 0,
-)
-
 /**
  * Data representation for the installed application.
  * App icon will be loaded by PackageName.
  */
-data class AppItem(
-    val label: String,
-    val packageName: String,
-    val versionName: String,
-    val versionCode: Long,
-    val isSystem: Boolean,
-    val isRunning: Boolean,
-    val enabled: Boolean,
-    val firstInstallTime: Instant?,
-    val lastUpdateTime: Instant?,
-    val appServiceStatus: AppServiceStatus?,
-    val packageInfo: PackageInfo?,
-)
 
-sealed interface AppListUiState {
-    object Loading : AppListUiState
-    class Error(val error: ErrorMessage) : AppListUiState
+sealed interface HomeUiState {
+    val isLoading: Boolean
+    val errorMessages: ErrorMessage
+
+    data class NoApps(
+        override val isLoading: Boolean,
+        override val errorMessages: ErrorMessage,
+    ) : HomeUiState
+
     data class Success(
-        val appList: SnapshotStateList<AppItem>,
-    ) : AppListUiState
+        val appList: SnapshotStateList<Application>,
+        val isDetailOpen: Boolean,
+        val selectedApp: Application,
+        override val isLoading: Boolean,
+        override val errorMessages: ErrorMessage,
+    ) : HomeUiState
+}
+
+enum class ScreenType {
+    ListAndDetails,
+    ListOnly,
+    DetailsOnly
+}
+
+private data class HomeViewModelState(
+    val appList: SnapshotStateList<Application>? = null,
+    val isDetailOpen: Boolean = false,
+    val selectedAppName: String? = null,
+    val isLoading: Boolean = true,
+    val errorMessages: ErrorMessage = ErrorMessage(message = ""),
+) {
+
+    /**
+     * Converts this [HomeViewModelState] into a more strongly typed [HomeUiState] for driving
+     * the ui.
+     */
+    fun toUiState(): HomeUiState =
+        if (appList == null) {
+            NoApps(
+                isLoading = isLoading,
+                errorMessages = errorMessages,
+            )
+        } else {
+            Success(
+                appList = appList,
+                selectedApp = appList.find {
+                    it.packageName == selectedAppName
+                } ?: appList[0],
+                isDetailOpen = isDetailOpen,
+                isLoading = isLoading,
+                errorMessages = errorMessages,
+            )
+        }
 }

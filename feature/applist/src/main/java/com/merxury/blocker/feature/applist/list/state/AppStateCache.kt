@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.merxury.blocker.feature.applist.state
+package com.merxury.blocker.feature.applist.list.state
 
 import android.content.ComponentName
 import android.content.Context

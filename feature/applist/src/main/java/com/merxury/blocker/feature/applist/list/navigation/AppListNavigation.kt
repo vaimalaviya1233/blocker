@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-package com.merxury.blocker.feature.applist.navigation
+package com.merxury.blocker.feature.applist.list.navigation
 
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavOptions
 import androidx.navigation.compose.composable
-import com.merxury.blocker.feature.applist.AppListRoute
+import com.merxury.blocker.feature.applist.list.AppListRoute
 
 const val appListRoute = "app_list_route"
 
@@ -32,6 +32,7 @@ fun NavGraphBuilder.appListScreen(
     navigateToAppDetail: (String) -> Unit,
     navigateToSettings: () -> Unit,
     navigateToSupportAndFeedback: () -> Unit,
+    isExpandedScreen: Boolean,
 ) {
     composable(
         route = appListRoute,
@@ -40,6 +41,7 @@ fun NavGraphBuilder.appListScreen(
             navigateToAppDetail = navigateToAppDetail,
             navigateToSettings = navigateToSettings,
             navigateToSupportAndFeedback = navigateToSupportAndFeedback,
+            isExpandedScreen = isExpandedScreen,
         )
     }
 }

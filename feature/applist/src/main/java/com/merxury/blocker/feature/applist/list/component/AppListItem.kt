@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.merxury.blocker.feature.applist.component
+package com.merxury.blocker.feature.applist.list.component
 
 import android.content.pm.PackageInfo
 import android.content.res.Configuration
@@ -53,7 +53,7 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.merxury.blocker.core.designsystem.theme.BlockerTheme
-import com.merxury.blocker.feature.applist.AppServiceStatus
+import com.merxury.blocker.core.model.AppServiceStatus
 import com.merxury.blocker.feature.applist.R.string
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalComposeUiApi::class)

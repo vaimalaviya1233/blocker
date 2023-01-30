@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.merxury.blocker.feature.applist.component
+package com.merxury.blocker.feature.applist.list.component
 
 import androidx.compose.runtime.Composable
 import com.merxury.blocker.core.designsystem.component.BlockerAppTopBarMenu

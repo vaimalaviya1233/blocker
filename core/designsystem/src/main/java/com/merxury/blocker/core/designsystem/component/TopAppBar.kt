@@ -89,6 +89,7 @@ fun BlockerCollapsingTopAppBar(
     isCollapsed: Boolean,
     scrollBehavior: TopAppBarScrollBehavior,
     actions: @Composable () -> Unit,
+    hasNavigationIcon: Boolean = true,
     onNavigationClick: () -> Unit = {},
 ) {
     LargeTopAppBar(
@@ -111,12 +112,14 @@ fun BlockerCollapsingTopAppBar(
             }
         },
         navigationIcon = {
-            IconButton(onClick = onNavigationClick) {
-                Icon(
-                    imageVector = BlockerIcons.Back,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurface,
-                )
+            if (hasNavigationIcon) {
+                IconButton(onClick = onNavigationClick) {
+                    Icon(
+                        imageVector = BlockerIcons.Back,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
             }
         },
         actions = {

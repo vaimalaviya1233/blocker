@@ -135,6 +135,7 @@ fun BlockerApp(
                         // TODO Show the top app bar on top level destinations.
 
                         BlockerNavHost(
+                            isExpandedScreen = appState.isExpandedScreen,
                             navController = appState.navController,
                             onBackClick = appState::onBackClick,
                         )

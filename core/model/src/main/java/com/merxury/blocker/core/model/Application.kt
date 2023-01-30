@@ -23,16 +23,23 @@ import android.os.Build
 import android.os.Parcel
 import android.os.Parcelable
 import com.merxury.blocker.core.model.util.ApkParser
+import java.io.File
 import kotlinx.datetime.Instant
 import kotlinx.parcelize.Parceler
 import kotlinx.parcelize.Parcelize
 import kotlinx.parcelize.RawValue
-import java.io.File
 
 /**
  * Created by Mercury on 2017/12/30.
  * An entity class that describe simplified application information
  */
+data class AppServiceStatus(
+    val packageName: String,
+    val running: Int = 0,
+    val blocked: Int = 0,
+    val total: Int = 0,
+)
+
 @Parcelize
 data class Application(
     val packageName: String = "",
@@ -45,6 +52,9 @@ data class Application(
     val firstInstallTime: @RawValue Instant? = null,
     val lastUpdateTime: @RawValue Instant? = null,
     val packageInfo: PackageInfo? = null,
+    val isSystem: Boolean = false,
+    val isRunning: Boolean = false,
+    val appServiceStatus: AppServiceStatus? = null,
 ) : Parcelable {
     // TODO customized parcelApplicationer should be removed
     private companion object : Parceler<Application> {
@@ -60,6 +70,9 @@ data class Application(
                 firstInstallTime = Instant.fromEpochMilliseconds(parcel.readLong()),
                 lastUpdateTime = Instant.fromEpochMilliseconds(parcel.readLong()),
                 packageInfo = parcel.readParcelableCompat(PackageInfo::class.java.classLoader),
+                isSystem = parcel.readInt() == 1,
+                isRunning = parcel.readInt() == 1,
+                appServiceStatus = parcel.readParcelableCompat(AppServiceStatus::class.java.classLoader),
             )
         }
 
@@ -74,6 +87,9 @@ data class Application(
             parcel.writeLong(firstInstallTime?.toEpochMilliseconds() ?: 0)
             parcel.writeLong(lastUpdateTime?.toEpochMilliseconds() ?: 0)
             parcel.writeParcelable(packageInfo, flags)
+            parcel.writeByte(if (isSystem) 1 else 0)
+            parcel.writeByte(if (isRunning) 1 else 0)
+            parcel.writeParcelable(appServiceStatus, flags)
         }
     }
 }

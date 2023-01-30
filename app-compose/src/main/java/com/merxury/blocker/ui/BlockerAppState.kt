@@ -17,7 +17,6 @@
 
 package com.merxury.blocker.ui
 
-import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.material3.windowsizeclass.WindowHeightSizeClass
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
@@ -35,8 +34,8 @@ import androidx.navigation.navOptions
 import androidx.tracing.trace
 import com.merxury.blocker.core.data.util.NetworkMonitor
 import com.merxury.blocker.core.ui.TrackDisposableJank
-import com.merxury.blocker.feature.applist.navigation.appListRoute
-import com.merxury.blocker.feature.applist.navigation.navigateToAppList
+import com.merxury.blocker.feature.applist.list.navigation.appListRoute
+import com.merxury.blocker.feature.applist.list.navigation.navigateToAppList
 import com.merxury.blocker.feature.globalsearch.navigation.globalSearchRoute
 import com.merxury.blocker.feature.globalsearch.navigation.navigateToGlobalSearch
 import com.merxury.blocker.feature.onlinerules.navigation.navigateToOnlineRules
@@ -50,7 +49,6 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 
-@OptIn(ExperimentalAnimationApi::class)
 @Composable
 fun rememberBlockerAppState(
     windowSizeClass: WindowSizeClass,
@@ -89,6 +87,8 @@ class BlockerAppState(
 
     val shouldShowNavRail: Boolean
         get() = !shouldShowBottomBar
+
+    val isExpandedScreen = windowSizeClass.widthSizeClass == WindowWidthSizeClass.Expanded
 
     val isOffline = networkMonitor.isOnline
         .map(Boolean::not)

@@ -23,8 +23,8 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import com.merxury.blocker.feature.appdetail.navigation.appDetailScreen
 import com.merxury.blocker.feature.appdetail.navigation.navigateToAppDetail
-import com.merxury.blocker.feature.applist.navigation.appListRoute
-import com.merxury.blocker.feature.applist.navigation.appListScreen
+import com.merxury.blocker.feature.applist.list.navigation.appListRoute
+import com.merxury.blocker.feature.applist.list.navigation.appListScreen
 import com.merxury.blocker.feature.globalsearch.navigation.globalSearchScreen
 import com.merxury.blocker.feature.helpandfeedback.navigation.navigateToSupportAndFeedback
 import com.merxury.blocker.feature.helpandfeedback.navigation.supportAndFeedbackScreen
@@ -42,6 +42,7 @@ import com.merxury.blocker.feature.settings.navigation.settingsScreen
 
 @Composable
 fun BlockerNavHost(
+    isExpandedScreen: Boolean,
     navController: NavHostController,
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -56,6 +57,7 @@ fun BlockerNavHost(
             navigateToAppDetail = navController::navigateToAppDetail,
             navigateToSettings = navController::navigateToSettings,
             navigateToSupportAndFeedback = navController::navigateToSupportAndFeedback,
+            isExpandedScreen = isExpandedScreen,
         )
         appDetailScreen(onBackClick)
         onlineRulesScreen()

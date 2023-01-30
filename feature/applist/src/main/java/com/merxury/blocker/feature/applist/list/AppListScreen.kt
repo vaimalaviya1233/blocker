@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.merxury.blocker.feature.applist
+package com.merxury.blocker.feature.applist.list
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -48,12 +48,16 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.merxury.blocker.core.designsystem.component.BlockerLoadingWheel
 import com.merxury.blocker.core.designsystem.component.BlockerTextButton
 import com.merxury.blocker.core.designsystem.component.BlockerTopAppBar
+import com.merxury.blocker.core.model.Application
 import com.merxury.blocker.core.model.preference.AppSorting
 import com.merxury.blocker.core.ui.data.ErrorMessage
 import com.merxury.blocker.feature.applist.R.string
-import com.merxury.blocker.feature.applist.component.AppListItem
-import com.merxury.blocker.feature.applist.component.TopAppBarMoreMenu
-import com.merxury.blocker.feature.applist.component.TopAppBarSortMenu
+import com.merxury.blocker.feature.applist.list.HomeUiState.NoApps
+import com.merxury.blocker.feature.applist.list.HomeUiState.Success
+import com.merxury.blocker.feature.applist.list.ScreenType.ListOnly
+import com.merxury.blocker.feature.applist.list.component.AppListItem
+import com.merxury.blocker.feature.applist.list.component.TopAppBarMoreMenu
+import com.merxury.blocker.feature.applist.list.component.TopAppBarSortMenu
 
 @Composable
 fun AppListRoute(
@@ -61,6 +65,7 @@ fun AppListRoute(
     navigateToSettings: () -> Unit,
     navigateToSupportAndFeedback: () -> Unit,
     modifier: Modifier = Modifier,
+    isExpandedScreen: Boolean,
     viewModel: AppListViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -79,6 +84,7 @@ fun AppListRoute(
         navigateToSettings = navigateToSettings,
         navigateToSupportAndFeedback = navigateToSupportAndFeedback,
         modifier = modifier,
+        isExpandedScreen = isExpandedScreen,
     )
     if (errorState != null) {
         AlertDialog(
@@ -103,7 +109,7 @@ fun AppListRoute(
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun AppListScreen(
-    uiState: AppListUiState,
+    uiState: HomeUiState,
     onAppItemClick: (String) -> Unit,
     onClearCacheClick: (String) -> Unit,
     onClearDataClick: (String) -> Unit,
@@ -116,7 +122,9 @@ fun AppListScreen(
     navigateToSettings: () -> Unit,
     navigateToSupportAndFeedback: () -> Unit,
     modifier: Modifier = Modifier,
+    isExpandedScreen: Boolean,
 ) {
+    val screenType = getScreenType(isExpandedScreen = isExpandedScreen, uiState = uiState)
     Scaffold(
         topBar = {
             BlockerTopAppBar(
@@ -145,7 +153,7 @@ fun AppListScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             when (uiState) {
-                AppListUiState.Loading -> {
+                is NoApps -> {
                     Column(
                         modifier = modifier
                             .fillMaxSize()
@@ -160,7 +168,7 @@ fun AppListScreen(
                     }
                 }
 
-                is AppListUiState.Success -> {
+                is Success -> {
                     AppListContent(
                         appList = uiState.appList,
                         onAppItemClick = onAppItemClick,
@@ -175,7 +183,7 @@ fun AppListScreen(
                     )
                 }
 
-                is AppListUiState.Error -> ErrorAppListScreen(uiState.error)
+                is Error -> ErrorAppListScreen(uiState.errorMessages)
             }
         }
     }
@@ -183,7 +191,7 @@ fun AppListScreen(
 
 @Composable
 fun AppListContent(
-    appList: SnapshotStateList<AppItem>,
+    appList: SnapshotStateList<Application>,
     onAppItemClick: (String) -> Unit,
     onClearCacheClick: (String) -> Unit,
     onClearDataClick: (String) -> Unit,
@@ -205,7 +213,7 @@ fun AppListContent(
                 AppListItem(
                     label = it.label,
                     packageName = it.packageName,
-                    versionName = it.versionName,
+                    versionName = it.versionName ?: "",
                     versionCode = it.versionCode,
                     packageInfo = it.packageInfo,
                     appServiceStatus = it.appServiceStatus,
@@ -228,4 +236,26 @@ fun AppListContent(
 @Composable
 fun ErrorAppListScreen(message: ErrorMessage) {
     Text(text = message.message)
+}
+
+@Composable
+private fun getScreenType(
+    isExpandedScreen: Boolean,
+    uiState: HomeUiState,
+): ScreenType = when (isExpandedScreen) {
+    false -> {
+        when (uiState) {
+            is Success -> {
+                if (uiState.isDetailOpen) {
+                    ScreenType.DetailsOnly
+                } else {
+                    ListOnly
+                }
+            }
+
+            is NoApps -> ListOnly
+        }
+    }
+
+    true -> ScreenType.ListAndDetails
 }
