@@ -16,6 +16,7 @@
 
 package com.merxury.blocker.feature.search
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -34,11 +35,17 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.merxury.blocker.core.designsystem.bottomsheet.ModalBottomSheetValue
+import com.merxury.blocker.core.designsystem.bottomsheet.ModalBottomSheetValue.Expanded
+import com.merxury.blocker.core.designsystem.bottomsheet.ModalBottomSheetValue.HalfExpanded
+import com.merxury.blocker.core.designsystem.bottomsheet.rememberModalBottomSheetState
+import com.merxury.blocker.core.designsystem.component.BlockerModalBottomSheetLayout
 import com.merxury.blocker.core.designsystem.theme.BlockerTheme
 import com.merxury.blocker.core.model.data.GeneralRule
 import com.merxury.blocker.core.ui.AppDetailTabs
@@ -51,6 +58,7 @@ import com.merxury.blocker.core.ui.screen.InitializingScreen
 import com.merxury.blocker.feature.search.component.FilteredComponentItem
 import com.merxury.blocker.feature.search.component.SearchBar
 import com.merxury.blocker.feature.search.model.ComponentTabUiState
+import com.merxury.blocker.feature.search.model.CurrentOpeningItem
 import com.merxury.blocker.feature.search.model.FilteredComponent
 import com.merxury.blocker.feature.search.model.LocalSearchUiState
 import com.merxury.blocker.feature.search.model.SearchBoxUiState
@@ -58,6 +66,7 @@ import com.merxury.blocker.feature.search.model.SearchViewModel
 import com.merxury.blocker.feature.search.screen.NoSearchResultScreen
 import com.merxury.blocker.feature.search.screen.SearchResultScreen
 import com.merxury.blocker.feature.search.screen.SearchingScreen
+import kotlinx.coroutines.launch
 
 @Composable
 fun SearchRoute(
@@ -84,6 +93,7 @@ fun SearchRoute(
         onSelect = viewModel::selectItem,
         navigateToAppDetail = navigateToAppDetail,
         navigateToRuleDetail = navigateToRuleDetail,
+        onClickItem = viewModel::clickItem,
     )
 }
 
@@ -108,49 +118,76 @@ fun SearchScreen(
     onSelect: (Boolean) -> Unit,
     navigateToAppDetail: (String, AppDetailTabs, List<String>) -> Unit = { _, _, _ -> },
     navigateToRuleDetail: (Int) -> Unit = {},
+    onClickItem: (CurrentOpeningItem) -> Unit = {},
 ) {
-    Scaffold(
-        topBar = {
-            TopBar(
-                localSearchUiState = localSearchUiState,
-                searchBoxUiState = searchBoxUiState,
-                onSearchTextChanged = onSearchTextChanged,
-                onClearClick = onClearClick,
-                onNavigationClick = onNavigationClick,
-                onSelectAll = onSelectAll,
-                onBlockAll = onBlockAll,
-                onCheckAll = onCheckAll,
-            )
-        },
-    ) { padding ->
-        Column(
-            modifier = modifier
-                .fillMaxSize()
-                .padding(top = padding.calculateTopPadding())
-                .consumeWindowInsets(padding)
-                .windowInsetsPadding(
-                    WindowInsets.safeDrawing.only(
-                        WindowInsetsSides.Horizontal,
-                    ),
-                ),
-        ) {
-            when (localSearchUiState) {
-                LocalSearchUiState.Idle -> NoSearchResultScreen()
-                LocalSearchUiState.Loading -> SearchingScreen()
-                is LocalSearchUiState.Error -> ErrorScreen(localSearchUiState.message)
-                is LocalSearchUiState.Initializing ->
-                    InitializingScreen(localSearchUiState.processingName)
+    val sheetState = rememberModalBottomSheetState(
+        initialValue = ModalBottomSheetValue.Hidden,
+        confirmStateChange = { it != HalfExpanded },
+    )
+    val coroutineScope = rememberCoroutineScope()
 
-                is LocalSearchUiState.Success -> SearchResultScreen(
-                    modifier = modifier,
-                    tabState = tabState,
-                    switchTab = switchTab,
+    BackHandler(sheetState.isVisible) {
+        coroutineScope.launch { sheetState.hide() }
+    }
+    if (sheetState.targetValue == Expanded) {
+        if (localSearchUiState is LocalSearchUiState.Success) {
+            val item = localSearchUiState.componentTabUiState.currentOpeningItem
+            navigateToAppDetail(item.packageName, item.appDetailTabs, item.keyword)
+        }
+    }
+    BlockerModalBottomSheetLayout(
+        sheetState = sheetState,
+        sheetContent = {
+            if (localSearchUiState is LocalSearchUiState.Success) {
+                val item = localSearchUiState.componentTabUiState.currentOpeningItem
+                navigateToAppDetail(item.packageName, item.appDetailTabs, item.keyword)
+            }
+        },
+    ) {
+        Scaffold(
+            topBar = {
+                TopBar(
                     localSearchUiState = localSearchUiState,
-                    switchSelectedMode = switchSelectedMode,
-                    onSelect = onSelect,
-                    navigateToAppDetail = navigateToAppDetail,
-                    navigateToRuleDetail = navigateToRuleDetail,
+                    searchBoxUiState = searchBoxUiState,
+                    onSearchTextChanged = onSearchTextChanged,
+                    onClearClick = onClearClick,
+                    onNavigationClick = onNavigationClick,
+                    onSelectAll = onSelectAll,
+                    onBlockAll = onBlockAll,
+                    onCheckAll = onCheckAll,
                 )
+            },
+        ) { padding ->
+            Column(
+                modifier = modifier
+                    .fillMaxSize()
+                    .padding(top = padding.calculateTopPadding())
+                    .consumeWindowInsets(padding)
+                    .windowInsetsPadding(
+                        WindowInsets.safeDrawing.only(
+                            WindowInsetsSides.Horizontal,
+                        ),
+                    ),
+            ) {
+                when (localSearchUiState) {
+                    LocalSearchUiState.Idle -> NoSearchResultScreen()
+                    LocalSearchUiState.Loading -> SearchingScreen()
+                    is LocalSearchUiState.Error -> ErrorScreen(localSearchUiState.message)
+                    is LocalSearchUiState.Initializing ->
+                        InitializingScreen(localSearchUiState.processingName)
+
+                    is LocalSearchUiState.Success -> SearchResultScreen(
+                        modifier = modifier,
+                        tabState = tabState,
+                        switchTab = switchTab,
+                        localSearchUiState = localSearchUiState,
+                        switchSelectedMode = switchSelectedMode,
+                        onSelect = onSelect,
+                        navigateToAppDetail = navigateToAppDetail,
+                        navigateToRuleDetail = navigateToRuleDetail,
+                        onClickItem = onClickItem,
+                    )
+                }
             }
         }
     }

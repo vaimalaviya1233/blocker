@@ -40,6 +40,7 @@ import com.merxury.blocker.core.model.preference.AppSorting.LAST_UPDATE_TIME_ASC
 import com.merxury.blocker.core.model.preference.AppSorting.LAST_UPDATE_TIME_DESCENDING
 import com.merxury.blocker.core.model.preference.AppSorting.NAME_ASCENDING
 import com.merxury.blocker.core.model.preference.AppSorting.NAME_DESCENDING
+import com.merxury.blocker.core.ui.AppDetailTabs
 import com.merxury.blocker.core.ui.TabState
 import com.merxury.blocker.core.ui.applist.model.AppItem
 import com.merxury.blocker.core.ui.applist.model.toAppItem
@@ -49,6 +50,7 @@ import com.merxury.blocker.core.ui.data.ErrorMessage
 import com.merxury.blocker.core.ui.data.toErrorMessage
 import com.merxury.blocker.feature.search.SearchScreenTabs
 import com.merxury.blocker.feature.search.model.LocalSearchUiState.Loading
+import com.merxury.blocker.feature.search.model.LocalSearchUiState.Success
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineExceptionHandler
@@ -213,7 +215,7 @@ class SearchViewModel @Inject constructor(
             searchGeneralRuleFlow,
         ) { apps, components, rules ->
             Timber.v("Fild ${apps.size} apps, ${components.size} components, ${rules.size} rules")
-            LocalSearchUiState.Success(
+            Success(
                 searchKeyword = keyword.split(","),
                 appTabUiState = AppTabUiState(list = apps),
                 componentTabUiState = ComponentTabUiState(list = components),
@@ -271,6 +273,15 @@ class SearchViewModel @Inject constructor(
     fun selectItem(select: Boolean) {
         // TODO
     }
+
+    fun clickItem(currentOpeningItem: CurrentOpeningItem) {
+        if (_localSearchUiState.value is Success) {
+            //update _localSearchUiState.components.currentOpeningItem = currentOpeningItem
+            TODO()
+        } else {
+            TODO()
+        }
+    }
 }
 
 sealed interface LocalSearchUiState {
@@ -301,7 +312,13 @@ data class ComponentTabUiState(
     val list: List<FilteredComponent> = listOf(),
     val isSelectedMode: Boolean = false,
     val selectedAppList: List<FilteredComponent> = listOf(),
-    val currentOpeningItem: FilteredComponent? = null,
+    val currentOpeningItem: CurrentOpeningItem = CurrentOpeningItem(),
+)
+
+data class CurrentOpeningItem(
+    val packageName: String = "",
+    val appDetailTabs: AppDetailTabs = AppDetailTabs.Info,
+    val keyword: List<String> = listOf(),
 )
 
 data class RuleTabUiState(

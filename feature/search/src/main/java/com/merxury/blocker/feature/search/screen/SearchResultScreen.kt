@@ -34,6 +34,7 @@ import com.merxury.blocker.feature.search.AppSearchResultContent
 import com.merxury.blocker.feature.search.ComponentSearchResultContent
 import com.merxury.blocker.feature.search.RuleSearchResultContent
 import com.merxury.blocker.feature.search.SearchScreenTabs
+import com.merxury.blocker.feature.search.model.CurrentOpeningItem
 import com.merxury.blocker.feature.search.model.LocalSearchUiState.Success
 
 @Composable
@@ -47,6 +48,7 @@ fun SearchResultScreen(
     onSelect: (Boolean) -> Unit,
     navigateToAppDetail: (String, AppDetailTabs, List<String>) -> Unit = { _, _, _ -> },
     navigateToRuleDetail: (Int) -> Unit = {},
+    onClickItem: (CurrentOpeningItem) -> Unit = {},
 ) {
     val keyboardController = LocalSoftwareKeyboardController.current
     Column(
@@ -88,7 +90,13 @@ fun SearchResultScreen(
                     } else {
                         AppDetailTabs.Info
                     }
-                    navigateToAppDetail(filterResult.app.packageName, firstTab, searchKeyword)
+                    onClickItem(
+                        CurrentOpeningItem(
+                            filterResult.app.packageName,
+                            firstTab,
+                            searchKeyword,
+                        ),
+                    )
                 },
             )
 
