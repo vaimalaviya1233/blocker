@@ -21,6 +21,8 @@ import androidx.compose.animation.core.FloatExponentialDecaySpec
 import androidx.compose.animation.core.animateDecay
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -318,31 +320,41 @@ fun AppDetailAppBarActions(
     enableAllComponents: () -> Unit = {},
 ) {
     val actions = appBarUiState.actions
-    if (actions.contains(SEARCH)) {
-        if (appBarUiState.isSearchMode) {
-            BlockerSearchTextField(
-                keyword = appBarUiState.keyword,
-                onValueChange = onSearchTextChanged,
-                placeholder = {
-                    Text(text = stringResource(id = string.search_components))
-                },
-                onClearClick = {
-                    if (appBarUiState.keyword.text.isEmpty()) {
-                        onSearchModeChange(false)
-                        return@BlockerSearchTextField
-                    }
-                    onSearchTextChanged(TextFieldValue())
-                },
+    RowLayout {
+        if (actions.contains(SEARCH)) {
+            if (appBarUiState.isSearchMode) {
+                BlockerSearchTextField(
+                    keyword = appBarUiState.keyword,
+                    onValueChange = onSearchTextChanged,
+                    placeholder = {
+                        Text(text = stringResource(id = string.search_components))
+                    },
+                    onClearClick = {
+                        if (appBarUiState.keyword.text.isEmpty()) {
+                            onSearchModeChange(false)
+                            return@BlockerSearchTextField
+                        }
+                        onSearchTextChanged(TextFieldValue())
+                    },
+                    modifier = Modifier.weight(1f),
+                )
+            } else {
+                SearchActionMenu(onSearchModeChange = onSearchModeChange)
+            }
+        }
+        if (actions.contains(MORE)) {
+            MoreActionMenu(
+                blockAllComponents = blockAllComponents,
+                enableAllComponents = enableAllComponents,
             )
-        } else {
-            SearchActionMenu(onSearchModeChange = onSearchModeChange)
         }
     }
-    if (actions.contains(MORE)) {
-        MoreActionMenu(
-            blockAllComponents = blockAllComponents,
-            enableAllComponents = enableAllComponents,
-        )
+}
+
+@Composable
+fun RowLayout(content: @Composable RowScope.() -> Unit) {
+    Row {
+        content()
     }
 }
 
