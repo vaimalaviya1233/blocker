@@ -22,7 +22,6 @@ import androidx.compose.animation.core.animateDecay
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -320,7 +319,7 @@ fun AppDetailAppBarActions(
     enableAllComponents: () -> Unit = {},
 ) {
     val actions = appBarUiState.actions
-    RowLayout {
+    Row {
         if (actions.contains(SEARCH)) {
             if (appBarUiState.isSearchMode) {
                 BlockerSearchTextField(
@@ -348,13 +347,6 @@ fun AppDetailAppBarActions(
                 enableAllComponents = enableAllComponents,
             )
         }
-    }
-}
-
-@Composable
-fun RowLayout(content: @Composable RowScope.() -> Unit) {
-    Row {
-        content()
     }
 }
 
